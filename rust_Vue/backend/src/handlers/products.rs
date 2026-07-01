@@ -6,15 +6,18 @@ use crate::{
 };
 use axum::{
     body::Bytes,
-    extract::{Path, State},
     extract::Query,
+    extract::{Path, State},
     http::{HeaderMap, StatusCode},
     routing::get,
     Json, Router,
 };
 use serde::Deserialize;
 use sqlx::AssertSqlSafe;
-use std::{path::{Path as FilePath, PathBuf}, time::{SystemTime, UNIX_EPOCH}};
+use std::{
+    path::{Path as FilePath, PathBuf},
+    time::{SystemTime, UNIX_EPOCH},
+};
 
 pub fn routes() -> Router<AppState> {
     Router::new()
@@ -22,7 +25,10 @@ pub fn routes() -> Router<AppState> {
         .route("/:id", get(get_one).put(update).delete(remove))
         .route("/:id/images", get(list_images).post(upload_image))
         .route("/:id/images/:image_id", axum::routing::delete(delete_image))
-        .route("/:id/images/:image_id/primary", axum::routing::put(set_primary_image))
+        .route(
+            "/:id/images/:image_id/primary",
+            axum::routing::put(set_primary_image),
+        )
 }
 
 #[derive(Deserialize)]
@@ -32,8 +38,13 @@ struct UploadImageQuery {
 
 #[derive(Deserialize)]
 struct ProductListQuery {
-    page: Option<i64>, page_size: Option<i64>, q: Option<String>, category: Option<String>,
-    anime: Option<String>, stock: Option<String>, sort: Option<String>,
+    page: Option<i64>,
+    page_size: Option<i64>,
+    q: Option<String>,
+    category: Option<String>,
+    anime: Option<String>,
+    stock: Option<String>,
+    sort: Option<String>,
 }
 
 fn image_root() -> PathBuf {
@@ -42,12 +53,27 @@ fn image_root() -> PathBuf {
         .unwrap_or_else(|_| PathBuf::from("../frontend/public/img/products"))
 }
 
+fn user_image_root() -> Option<PathBuf> {
+    std::env::var("USER_PRODUCT_IMAGE_ROOT")
+        .ok()
+        .map(PathBuf::from)
+        .or_else(|| {
+            Some(PathBuf::from(
+                "../../nodejs_Vue/frontend/ShopAnimeTK_nodejs/public/img/products",
+            ))
+        })
+}
+
 fn safe_segment(value: &str, fallback: &str) -> String {
     let clean: String = value
         .chars()
         .filter(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_'))
         .collect();
-    if clean.is_empty() { fallback.to_string() } else { clean }
+    if clean.is_empty() {
+        fallback.to_string()
+    } else {
+        clean
+    }
 }
 
 fn image_extension(filename: &str, headers: &HeaderMap) -> ApiResult<&'static str> {
@@ -65,7 +91,9 @@ fn image_extension(filename: &str, headers: &HeaderMap) -> ApiResult<&'static st
         ("image/png", _) | (_, "png") => Ok("png"),
         ("image/webp", _) | (_, "webp") => Ok("webp"),
         ("image/gif", _) | (_, "gif") => Ok("gif"),
-        _ => Err(ApiError::bad_request("Chỉ hỗ trợ ảnh JPG, PNG, WEBP hoặc GIF")),
+        _ => Err(ApiError::bad_request(
+            "Chỉ hỗ trợ ảnh JPG, PNG, WEBP hoặc GIF",
+        )),
     }
 }
 
@@ -84,12 +112,13 @@ fn product_select() -> &'static str {
         h.tenhh,
         img.duongdan AS anhdaidien
     FROM sanpham s
-    LEFT JOIN danhmuchang d ON d.madmh = s.madmh
-    LEFT JOIN hoathinh h ON h.mahh = s.mahh
+    LEFT JOIN danhmuchang d ON TRIM(d.madmh) = TRIM(s.madmh)
+    LEFT JOIN hoathinh h ON TRIM(h.mahh) = TRIM(s.mahh)
     LEFT JOIN LATERAL (
         SELECT duongdan
         FROM hinhanhsp
-        WHERE masp = s.masp
+        WHERE TRIM(masp) = TRIM(s.masp)
+          AND NULLIF(TRIM(duongdan), '') IS NOT NULL
         ORDER BY
             CASE WHEN anhdaidien = 1 THEN 0 ELSE 1 END,
             anhdaidien DESC NULLS LAST,
@@ -99,7 +128,10 @@ fn product_select() -> &'static str {
     "#
 }
 
-async fn list(State(state): State<AppState>, Query(query): Query<ProductListQuery>) -> ApiResult<Json<PageResponse<Product>>> {
+async fn list(
+    State(state): State<AppState>,
+    Query(query): Query<ProductListQuery>,
+) -> ApiResult<Json<PageResponse<Product>>> {
     let page = query.page.unwrap_or(1).max(1);
     let page_size = query.page_size.unwrap_or(10).clamp(5, 100);
     let q = query.q.unwrap_or_default();
@@ -123,11 +155,25 @@ async fn list(State(state): State<AppState>, Query(query): Query<ProductListQuer
     "#;
     let count_sql = format!("SELECT COUNT(*) FROM sanpham s {conditions}");
     let total = sqlx::query_scalar::<_, i64>(AssertSqlSafe(count_sql))
-        .bind(&q).bind(&category).bind(&anime).bind(&stock).fetch_one(&state.pool).await?;
-    let sql = format!("{} {} ORDER BY {} LIMIT $5 OFFSET $6", product_select(), conditions, order);
+        .bind(&q)
+        .bind(&category)
+        .bind(&anime)
+        .bind(&stock)
+        .fetch_one(&state.pool)
+        .await?;
+    let sql = format!(
+        "{} {} ORDER BY {} LIMIT $5 OFFSET $6",
+        product_select(),
+        conditions,
+        order
+    );
     let items = sqlx::query_as::<_, Product>(AssertSqlSafe(sql))
-        .bind(&q).bind(&category).bind(&anime).bind(&stock)
-        .bind(page_size).bind((page - 1) * page_size)
+        .bind(&q)
+        .bind(&category)
+        .bind(&anime)
+        .bind(&stock)
+        .bind(page_size)
+        .bind((page - 1) * page_size)
         .fetch_all(&state.pool)
         .await?;
     Ok(Json(PageResponse::new(items, total, page, page_size)))
@@ -137,7 +183,7 @@ async fn get_one(
     State(state): State<AppState>,
     Path(id): Path<String>,
 ) -> ApiResult<Json<Product>> {
-    let sql = format!("{} WHERE s.masp = $1", product_select());
+    let sql = format!("{} WHERE TRIM(s.masp) = TRIM($1)", product_select());
     let item = sqlx::query_as::<_, Product>(AssertSqlSafe(sql))
         .bind(id)
         .fetch_one(&state.pool)
@@ -167,7 +213,7 @@ async fn create(
     .execute(&state.pool)
     .await?;
 
-    let sql = format!("{} WHERE s.masp = $1", product_select());
+    let sql = format!("{} WHERE TRIM(s.masp) = TRIM($1)", product_select());
     let item = sqlx::query_as::<_, Product>(AssertSqlSafe(sql))
         .bind(id)
         .fetch_one(&state.pool)
@@ -198,7 +244,7 @@ async fn update(
     .execute(&state.pool)
     .await?;
 
-    let sql = format!("{} WHERE s.masp = $1", product_select());
+    let sql = format!("{} WHERE TRIM(s.masp) = TRIM($1)", product_select());
     let item = sqlx::query_as::<_, Product>(AssertSqlSafe(sql))
         .bind(id)
         .fetch_one(&state.pool)
@@ -231,7 +277,7 @@ async fn list_images(
         r#"
         SELECT maha, duongdan, masp, anhdaidien
         FROM hinhanhsp
-        WHERE masp = $1
+        WHERE TRIM(masp) = TRIM($1)
         ORDER BY CASE WHEN anhdaidien = 1 THEN 0 ELSE 1 END, maha
         "#,
     )
@@ -255,10 +301,11 @@ async fn upload_image(
         return Err(ApiError::bad_request("Mỗi ảnh không được vượt quá 10 MB"));
     }
 
-    let category: Option<String> = sqlx::query_scalar("SELECT madmh FROM sanpham WHERE masp = $1")
-        .bind(&id)
-        .fetch_one(&state.pool)
-        .await?;
+    let category: Option<String> =
+        sqlx::query_scalar("SELECT madmh FROM sanpham WHERE TRIM(masp) = TRIM($1)")
+            .bind(&id)
+            .fetch_one(&state.pool)
+            .await?;
     let category = safe_segment(category.as_deref().unwrap_or("KHAC").trim(), "KHAC");
     let extension = image_extension(&query.filename, &headers)?;
     let original_stem = FilePath::new(&query.filename)
@@ -276,8 +323,20 @@ async fn upload_image(
         .await
         .map_err(|error| ApiError::internal(format!("Không lưu được ảnh: {error}")))?;
 
+    if let Some(user_root) = user_image_root() {
+        let user_directory = user_root.join(&category);
+        tokio::fs::create_dir_all(&user_directory)
+            .await
+            .map_err(|error| {
+                ApiError::internal(format!("Khong tao duoc thu muc anh user: {error}"))
+            })?;
+        tokio::fs::write(user_directory.join(&filename), &body)
+            .await
+            .map_err(|error| ApiError::internal(format!("Khong luu duoc anh user: {error}")))?;
+    }
+
     let has_primary: bool = sqlx::query_scalar(
-        "SELECT EXISTS(SELECT 1 FROM hinhanhsp WHERE masp = $1 AND anhdaidien = 1)",
+        "SELECT EXISTS(SELECT 1 FROM hinhanhsp WHERE TRIM(masp) = TRIM($1) AND anhdaidien = 1)",
     )
     .bind(&id)
     .fetch_one(&state.pool)
@@ -306,15 +365,17 @@ async fn set_primary_image(
     Path((id, image_id)): Path<(String, String)>,
 ) -> ApiResult<StatusCode> {
     let mut transaction = state.pool.begin().await?;
-    sqlx::query("UPDATE hinhanhsp SET anhdaidien = 0 WHERE masp = $1")
+    sqlx::query("UPDATE hinhanhsp SET anhdaidien = 0 WHERE TRIM(masp) = TRIM($1)")
         .bind(&id)
         .execute(&mut *transaction)
         .await?;
-    let result = sqlx::query("UPDATE hinhanhsp SET anhdaidien = 1 WHERE masp = $1 AND maha = $2")
-        .bind(&id)
-        .bind(&image_id)
-        .execute(&mut *transaction)
-        .await?;
+    let result = sqlx::query(
+        "UPDATE hinhanhsp SET anhdaidien = 1 WHERE TRIM(masp) = TRIM($1) AND maha = $2",
+    )
+    .bind(&id)
+    .bind(&image_id)
+    .execute(&mut *transaction)
+    .await?;
     if result.rows_affected() == 0 {
         return Err(ApiError::not_found("Không tìm thấy ảnh sản phẩm"));
     }
@@ -327,13 +388,13 @@ async fn delete_image(
     Path((id, image_id)): Path<(String, String)>,
 ) -> ApiResult<StatusCode> {
     let image: ProductImage = sqlx::query_as(
-        "SELECT maha, duongdan, masp, anhdaidien FROM hinhanhsp WHERE masp = $1 AND maha = $2",
+        "SELECT maha, duongdan, masp, anhdaidien FROM hinhanhsp WHERE TRIM(masp) = TRIM($1) AND maha = $2",
     )
     .bind(&id)
     .bind(&image_id)
     .fetch_one(&state.pool)
     .await?;
-    sqlx::query("DELETE FROM hinhanhsp WHERE masp = $1 AND maha = $2")
+    sqlx::query("DELETE FROM hinhanhsp WHERE TRIM(masp) = TRIM($1) AND maha = $2")
         .bind(&id)
         .bind(&image_id)
         .execute(&state.pool)
@@ -343,6 +404,9 @@ async fn delete_image(
         let relative = public_path.trim_start_matches("/img/products/");
         if !relative.contains("..") {
             let _ = tokio::fs::remove_file(image_root().join(relative)).await;
+            if let Some(user_root) = user_image_root() {
+                let _ = tokio::fs::remove_file(user_root.join(relative)).await;
+            }
         }
     }
     if image.anhdaidien == Some(1) {
@@ -350,7 +414,7 @@ async fn delete_image(
             r#"
             UPDATE hinhanhsp SET anhdaidien = 1
             WHERE maha = (
-                SELECT maha FROM hinhanhsp WHERE masp = $1 ORDER BY maha LIMIT 1
+                SELECT maha FROM hinhanhsp WHERE TRIM(masp) = TRIM($1) ORDER BY maha LIMIT 1
             )
             "#,
         )

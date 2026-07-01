@@ -206,7 +206,7 @@ async function openOrder(orderId) {
   drawerOpen.value = true; detailLoading.value = true; detailError.value = ''; success.value = ''; selected.value = null
   try {
     selected.value = (await api.get(`/orders/${encodeURIComponent(orderId)}`)).data
-    selected.value.status_history ||= []; newStatus.value = ''
+    selected.value.status_history ||= []; newStatus.value = selected.value.order.matt || ''
   } catch (err) { detailError.value = getErrorMessage(err, 'Không thể tải chi tiết hóa đơn.') }
   finally { detailLoading.value = false }
 }
@@ -225,8 +225,10 @@ async function updateStatus() {
   const orderId = selected.value.order.mahd
   try {
     await api.post(`/orders/${encodeURIComponent(orderId)}/status`, { matt: newStatus.value })
-    const [detailResponse] = await Promise.all([api.get(`/orders/${encodeURIComponent(orderId)}`), load()])
-    selected.value = detailResponse.data; selected.value.status_history ||= []; newStatus.value = ''
+    const detailResponse = await api.get(`/orders/${encodeURIComponent(orderId)}`)
+    selected.value = detailResponse.data; selected.value.status_history ||= []; newStatus.value = selected.value.order.matt || ''
+    await load()
+    selected.value = detailResponse.data; selected.value.status_history ||= []; newStatus.value = selected.value.order.matt || ''
     success.value = 'Cập nhật trạng thái hóa đơn thành công.'
   } catch (err) { detailError.value = getErrorMessage(err, 'Không thể cập nhật trạng thái hóa đơn.') }
   finally { saving.value = false }

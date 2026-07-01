@@ -29,7 +29,10 @@ pub fn routes(state: AppState) -> Router<AppState> {
         .nest("/tags", tags::routes())
         .nest("/users", users::routes())
         .nest("/statuses", statuses::routes())
-        .route_layer(middleware::from_fn_with_state(state, auth_db::require_admin))
+        .route_layer(middleware::from_fn_with_state(
+            state,
+            auth_db::require_admin,
+        ))
 }
 
 pub struct ApiError {

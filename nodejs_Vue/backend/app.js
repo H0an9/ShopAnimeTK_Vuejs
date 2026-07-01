@@ -35,6 +35,40 @@ function requireUser(req, res, next) {
     next()
 }
 
+let ensureDiachiTablePromise
+const ensureDiachiTable = () => {
+    if (!ensureDiachiTablePromise) {
+        ensureDiachiTablePromise = pool.query(`
+            CREATE TABLE IF NOT EXISTS public.diachi (
+                madc BIGSERIAL PRIMARY KEY,
+                mand VARCHAR(10) NOT NULL,
+                ten VARCHAR(100) NOT NULL,
+                sodienthoai VARCHAR(15) NOT NULL,
+                tinh_tp VARCHAR(100) NOT NULL,
+                diachinha TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_diachi_mand ON public.diachi(mand);
+        `).catch((error) => {
+            ensureDiachiTablePromise = undefined
+            throw error
+        })
+    }
+
+    return ensureDiachiTablePromise
+}
+
+const getSessionMand = (req) => String(req.session.user?.mand || '').trim()
+
+const normalizeAddressPayload = (body) => ({
+    ten: String(body.ten || '').trim(),
+    sodienthoai: String(body.sodienthoai || '').trim(),
+    tinh_tp: String(body.tinh_tp || '').trim(),
+    diachinha: String(body.diachinha || '').trim()
+})
+
+const isValidAddress = ({ ten, sodienthoai, tinh_tp, diachinha }) =>
+    Boolean(ten && /^0\d{9}$/.test(sodienthoai) && tinh_tp && diachinha)
+
 // 1. Cấu hình Middleware
 // app.use(cors()); // Cho phép các nguồn khác gọi API nếu cần
 app.use(bodyParser.json());
@@ -61,7 +95,7 @@ app.use(session({
         maxAge: 1000 * 60 * 60 * 24
     }
 }))
-app.use('/img', express.static('public/img'))
+app.use('/img', express.static(path.join(__dirname, '..', 'frontend', 'ShopAnimeTK_nodejs', 'public', 'img')))
 
 // 2. Các Route API (Giữ nguyên logic nhưng dọn dẹp gọn gàng)
 app.get('/api/loadDmh', async (req, res) => {
@@ -579,9 +613,10 @@ app.get('/api/detail-product-groups/:masp', async (req, res) => {
                            'maha', ha.maha,
                            'duongdan', ha.duongdan,
                            'anhdaidien', ha.anhdaidien
-                       ) ORDER BY ha.anhdaidien, ha.maha)
-                       FROM public.hinhanhsp ha
-                       WHERE TRIM(ha.masp) = TRIM(sp.masp)
+                        ) ORDER BY CASE WHEN ha.anhdaidien = 1 THEN 0 WHEN ha.anhdaidien = 2 THEN 1 ELSE 2 END, ha.maha)
+                        FROM public.hinhanhsp ha
+                        WHERE TRIM(ha.masp) = TRIM(sp.masp)
+                          AND NULLIF(TRIM(ha.duongdan), '') IS NOT NULL
                    ), '[]'::json) AS hinhanhsps
             FROM public.sanpham sp
             LEFT JOIN public.danhmuchang dmh ON TRIM(dmh.madmh) = TRIM(sp.madmh)
@@ -635,8 +670,10 @@ app.get('/api/home-product-groups', async (req, res) => {
                    COALESCE((
                        SELECT json_agg(json_build_object(
                            'maha', ha.maha, 'duongdan', ha.duongdan, 'anhdaidien', ha.anhdaidien
-                       ) ORDER BY ha.anhdaidien, ha.maha)
-                       FROM public.hinhanhsp ha WHERE TRIM(ha.masp) = TRIM(sp.masp)
+                        ) ORDER BY CASE WHEN ha.anhdaidien = 1 THEN 0 WHEN ha.anhdaidien = 2 THEN 1 ELSE 2 END, ha.maha)
+                        FROM public.hinhanhsp ha
+                        WHERE TRIM(ha.masp) = TRIM(sp.masp)
+                          AND NULLIF(TRIM(ha.duongdan), '') IS NOT NULL
                    ), '[]'::json) AS hinhanhsps
             FROM public.sanpham sp
             LEFT JOIN public.danhmuchang dmh ON TRIM(dmh.madmh) = TRIM(sp.madmh)
@@ -735,12 +772,14 @@ app.post('/api/reviews/:masp', requireUser, async (req, res) => {
 
 app.get('/api/addresses', requireUser, async (req, res) => {
     try {
+        await ensureDiachiTable()
+        const mand = getSessionMand(req)
         const result = await pool.query(`
             SELECT madc, ten, sodienthoai, tinh_tp, diachinha
             FROM public.diachi
             WHERE mand = $1
             ORDER BY madc DESC
-        `, [req.session.user.mand.trim()])
+        `, [mand])
 
         res.json({ addresses: result.rows, selected: req.session.checkoutAddress || null })
     } catch (error) {
@@ -751,16 +790,18 @@ app.get('/api/addresses', requireUser, async (req, res) => {
 
 app.post('/api/addresses', requireUser, async (req, res) => {
     try {
-        const { ten, sodienthoai, tinh_tp, diachinha } = req.body
-        if (!ten || !/^0\d{9}$/.test(sodienthoai || '') || !tinh_tp || !diachinha) {
+        await ensureDiachiTable()
+        const address = normalizeAddressPayload(req.body)
+        if (!isValidAddress(address)) {
             return res.status(400).json({ message: 'Thông tin địa chỉ không hợp lệ' })
         }
 
+        const { ten, sodienthoai, tinh_tp, diachinha } = address
         const result = await pool.query(`
             INSERT INTO public.diachi (mand, ten, sodienthoai, tinh_tp, diachinha)
             VALUES ($1, $2, $3, $4, $5)
             RETURNING madc, ten, sodienthoai, tinh_tp, diachinha
-        `, [req.session.user.mand.trim(), ten.trim(), sodienthoai, tinh_tp, diachinha.trim()])
+        `, [getSessionMand(req), ten, sodienthoai, tinh_tp, diachinha])
 
         res.status(201).json(result.rows[0])
     } catch (error) {
@@ -771,17 +812,19 @@ app.post('/api/addresses', requireUser, async (req, res) => {
 
 app.put('/api/addresses/:id', requireUser, async (req, res) => {
     try {
-        const { ten, sodienthoai, tinh_tp, diachinha } = req.body
-        if (!ten || !/^0\d{9}$/.test(sodienthoai || '') || !tinh_tp || !diachinha) {
+        await ensureDiachiTable()
+        const address = normalizeAddressPayload(req.body)
+        if (!isValidAddress(address)) {
             return res.status(400).json({ message: 'Thông tin địa chỉ không hợp lệ' })
         }
 
+        const { ten, sodienthoai, tinh_tp, diachinha } = address
         const result = await pool.query(`
             UPDATE public.diachi
             SET ten = $1, sodienthoai = $2, tinh_tp = $3, diachinha = $4
             WHERE madc = $5 AND mand = $6
             RETURNING madc, ten, sodienthoai, tinh_tp, diachinha
-        `, [ten.trim(), sodienthoai, tinh_tp, diachinha.trim(), req.params.id, req.session.user.mand.trim()])
+        `, [ten, sodienthoai, tinh_tp, diachinha, req.params.id, getSessionMand(req)])
 
         if (!result.rows[0]) return res.status(404).json({ message: 'Không tìm thấy địa chỉ' })
         res.json(result.rows[0])
@@ -793,9 +836,10 @@ app.put('/api/addresses/:id', requireUser, async (req, res) => {
 
 app.delete('/api/addresses/:id', requireUser, async (req, res) => {
     try {
+        await ensureDiachiTable()
         await pool.query(
             'DELETE FROM public.diachi WHERE madc = $1 AND mand = $2',
-            [req.params.id, req.session.user.mand.trim()]
+            [req.params.id, getSessionMand(req)]
         )
         res.json({ success: true })
     } catch (error) {
@@ -805,12 +849,12 @@ app.delete('/api/addresses/:id', requireUser, async (req, res) => {
 })
 
 app.post('/api/checkout-address', requireUser, (req, res) => {
-    const { ten, sodienthoai, tinh_tp, diachinha } = req.body
-    if (!ten || !/^0\d{9}$/.test(sodienthoai || '') || !tinh_tp || !diachinha) {
+    const address = normalizeAddressPayload(req.body)
+    if (!isValidAddress(address)) {
         return res.status(400).json({ message: 'Thông tin địa chỉ không hợp lệ' })
     }
 
-    req.session.checkoutAddress = { ten, sodienthoai, tinh_tp, diachinha }
+    req.session.checkoutAddress = address
     req.session.save((error) => {
         if (error) return res.status(500).json({ message: 'Không thể lưu địa chỉ vào session' })
         res.json(req.session.checkoutAddress)

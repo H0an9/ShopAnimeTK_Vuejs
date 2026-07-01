@@ -190,7 +190,7 @@ onMounted(async () => {
                       <em class="align-text-top">199</em>999 VND
                     </b>
                   </h5>
-                  <a href="/SanphamsUser/Hoathinh?MaHh=Hh010" class="btn btn-dark btn-md ls-10">Mua ngay!</a>
+                  <router-link to="/Hoathinh?MaHh=Hh010" class="btn btn-dark btn-md ls-10">Mua ngay!</router-link>
                 </div>
                 <!-- End .banner-layer -->
               </div>
@@ -206,7 +206,7 @@ onMounted(async () => {
                     Chỉ từ
                     <b><em>299</em>999 VND</b>
                   </h5>
-                  <a href="/SanphamsUser/Hoathinh?MaHh=Hh009" class="btn btn-dark btn-md ls-10">Sở hữu ngay!</a>
+                  <router-link to="/Hoathinh?MaHh=Hh009" class="btn btn-dark btn-md ls-10">Sở hữu ngay!</router-link>
                 </div>
                 <!-- End .banner-layer -->
               </div>
@@ -222,7 +222,7 @@ onMounted(async () => {
                     Chỉ từ
                     <b><em>99</em>99 VND</b>
                   </h5>
-                  <a href="/SanphamsUser/Hoathinh?MaHh=Hh001" class="btn btn-dark btn-md ls-10">Săn ngay!</a>
+                  <router-link to="/Hoathinh?MaHh=Hh001" class="btn btn-dark btn-md ls-10">Săn ngay!</router-link>
                 </div>
                 <!-- End .banner-layer -->
               </div>

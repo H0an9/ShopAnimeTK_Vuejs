@@ -77,6 +77,7 @@ const sps = ref<SanPhamVoiChiTiet[]>([]);
 const madmh = computed(() => route.query.MaDmh as string || '')
 const tendmh = ref<string>('');
 const priceSlider = ref<HTMLElement | null>(null);
+let requestId = 0
 
 const getAnhByLoai = (sp: SanPhamVoiChiTiet, loai: number) => {
     const images = getProductImagePaths(sp)
@@ -99,19 +100,30 @@ const filters = ref({
     page: Number(route.query.page) || 1
 });
 
+const syncFiltersFromRoute = () => {
+    filters.value.madmh = String(route.query.MaDmh || '').trim();
+    filters.value.orderby = (route.query.orderby as string) ?? 'menu_order';
+    filters.value.minPrice = Number(route.query.minPrice) || 0;
+    filters.value.maxPrice = Number(route.query.maxPrice) || 10000000;
+    filters.value.page = Number(route.query.page) || 1;
+}
+
 const loadSanphamDmh = async () => {
+    const currentRequestId = ++requestId
+    const params = { ...filters.value }
     try {
         const response = await axios.get('/api/loadSanphamDmh', {
             // Gửi trực tiếp MaDmh viết hoa theo yêu cầu Backend nếu cần, 
             // hoặc dùng filters.value.madmh
             params: {
-                MaDmh: filters.value.madmh,
-                orderby: filters.value.orderby,
-                minPrice: filters.value.minPrice,
-                maxPrice: filters.value.maxPrice,
-                page: filters.value.page
+                MaDmh: params.madmh,
+                orderby: params.orderby,
+                minPrice: params.minPrice,
+                maxPrice: params.maxPrice,
+                page: params.page
             }
         });
+        if (currentRequestId !== requestId) return
 
         // Khớp với cấu trúc Backend mới trả về { items, totalPages }
         sps.value = response.data.items || [];
@@ -168,11 +180,7 @@ onMounted(() => {
 watch(
     () => route.fullPath,
     () => {
-        filters.value.madmh = (route.query.MaDmh as string) ?? '';
-        filters.value.orderby = (route.query.orderby as string) ?? 'menu_order';
-        filters.value.minPrice = Number(route.query.minPrice) || 0;
-        filters.value.maxPrice = Number(route.query.maxPrice) || 10000000;
-        filters.value.page = Number(route.query.page) || 1;
+        syncFiltersFromRoute();
 
         const sliderInstance = (priceSlider.value as any)?.noUiSlider;
 
@@ -274,18 +282,18 @@ watch(
                                     <div class="product-details">
                                         <div class="category-wrap">
                                             <div class="category-list">
-                                                <a :href="`/SanphamsUser/Danhmuchang?MaDmh=${sp.madmh}`"
+                                                <router-link :to="`/Danhmuchang?MaDmh=${sp.madmh}`"
                                                     class="product-category">
                                                     {{ sp.tendmh }}
-                                                </a>
+                                                </router-link>
                                             </div>
                                         </div>
 
                                         <h3 class="product-title">
-                                            <a :href="`/chitiet/${sp.tensp?.toLowerCase()}_${sp.masp}`"
+                                            <router-link :to="`/chitiet/${sp.tensp?.toLowerCase().replace(/\s+/g, '-')}_${sp.masp}`"
                                                 :title="`${sp.tensp}`">
                                                 {{ sp.tensp }}
-                                            </a>
+                                            </router-link>
                                         </h3>
 
                                         <div class="ratings-container">
@@ -308,12 +316,12 @@ watch(
                                             <a href="wishlist.html" class="btn-icon-wish" title="Yêu thích">
                                                 <i class="icon-heart"></i>
                                             </a>
-                                            <a :href="`/chitiet/${sp.tensp?.toLowerCase().replace(/\s+/g, '-')}_${sp.masp}`"
+                                            <router-link :to="`/chitiet/${sp.tensp?.toLowerCase().replace(/\s+/g, '-')}_${sp.masp}`"
                                                 class="btn-icon btn-add-cart">
                                                 <i class="fa fa-arrow-right"></i><span>
                                                     MUA HÀNG
                                                 </span>
-                                            </a>
+                                            </router-link>
                                             <!--<a href="ajax/product-quick-view.html" class="btn-quickview" title="Quick View"><i class="fas fa-external-link-alt"></i></a>-->
                                         </div>
                                     </div>

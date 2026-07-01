@@ -1,6 +1,13 @@
 use super::ApiResult;
-use crate::{models::{DashboardRevenuePoint, DashboardSlice, DashboardStats, DashboardVisuals, OrderRow}, AppState};
-use axum::{extract::{Query, State}, routing::get, Json, Router};
+use crate::{
+    models::{DashboardRevenuePoint, DashboardSlice, DashboardStats, DashboardVisuals, OrderRow},
+    AppState,
+};
+use axum::{
+    extract::{Query, State},
+    routing::get,
+    Json, Router,
+};
 use serde::Deserialize;
 
 #[derive(Deserialize)]
@@ -30,7 +37,10 @@ async fn stats(State(state): State<AppState>) -> ApiResult<Json<DashboardStats>>
     Ok(Json(row))
 }
 
-async fn visuals(State(state): State<AppState>, Query(query): Query<VisualsQuery>) -> ApiResult<Json<DashboardVisuals>> {
+async fn visuals(
+    State(state): State<AppState>,
+    Query(query): Query<VisualsQuery>,
+) -> ApiResult<Json<DashboardVisuals>> {
     let start_month = query.start_month.unwrap_or_default();
     let revenue = sqlx::query_as::<_, DashboardRevenuePoint>(
         r#"

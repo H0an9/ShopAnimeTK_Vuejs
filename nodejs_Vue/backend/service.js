@@ -4,7 +4,7 @@ const getDangnhap = async ({taikhoan}) => {
     const result = await pool.query(
             `SELECT *,
             (
-                SELECT JSON_AGG(anh)
+                SELECT COALESCE(JSON_AGG(anh), '[]'::json)
                 FROM (
                     SELECT maha, duongdan, mand
                     FROM public.hinhanhnd
@@ -78,18 +78,21 @@ const getAllSanphamDmh = async ({ madmh, orderby, minPrice, maxPrice, page }) =>
     const queryText = `
         SELECT sp.*, dmh.tendmh,
             (
-                SELECT JSON_AGG(anh) 
+                SELECT COALESCE(JSON_AGG(anh), '[]'::json)
                 FROM (
                     SELECT maha, duongdan, masp, anhdaidien 
                     FROM public.hinhanhsp 
-                    WHERE masp = sp.masp 
-                    ORDER BY anhdaidien ASC
+                    WHERE TRIM(masp) = TRIM(sp.masp)
+                      AND NULLIF(TRIM(duongdan), '') IS NOT NULL
+                    ORDER BY
+                        CASE WHEN anhdaidien = 1 THEN 0 WHEN anhdaidien = 2 THEN 1 ELSE 2 END,
+                        maha
                 ) anh
             ) as hinhanhsps,
             COUNT(*) OVER() as total_count -- Lấy tổng số dòng để tính totalPages
         FROM public.sanpham sp
-        JOIN public.danhmuchang dmh ON sp.madmh = dmh.madmh
-        WHERE sp.madmh ILIKE '%' || $1 || '%' 
+        JOIN public.danhmuchang dmh ON TRIM(sp.madmh) = TRIM(dmh.madmh)
+        WHERE TRIM(sp.madmh) ILIKE '%' || $1 || '%' 
           AND sp.gia >= $2 
           AND sp.gia <= $3
         ORDER BY ${sortQuery}
@@ -122,18 +125,21 @@ const getAllSanphamHh = async ({ mahh, orderby, minPrice, maxPrice, page }) => {
     const queryText = `
         SELECT sp.*, hh.tenhh,
             (
-                SELECT JSON_AGG(anh) 
+                SELECT COALESCE(JSON_AGG(anh), '[]'::json)
                 FROM (
                     SELECT maha, duongdan, masp, anhdaidien 
                     FROM public.hinhanhsp 
-                    WHERE masp = sp.masp 
-                    ORDER BY anhdaidien ASC
+                    WHERE TRIM(masp) = TRIM(sp.masp)
+                      AND NULLIF(TRIM(duongdan), '') IS NOT NULL
+                    ORDER BY
+                        CASE WHEN anhdaidien = 1 THEN 0 WHEN anhdaidien = 2 THEN 1 ELSE 2 END,
+                        maha
                 ) anh
             ) as hinhanhsps,
             COUNT(*) OVER() as total_count -- Lấy tổng số dòng để tính totalPages
         FROM public.sanpham sp
-        JOIN public.hoathinh hh ON sp.mahh = hh.mahh
-        WHERE sp.mahh ILIKE '%' || $1 || '%'
+        JOIN public.hoathinh hh ON TRIM(sp.mahh) = TRIM(hh.mahh)
+        WHERE TRIM(sp.mahh) ILIKE '%' || $1 || '%'
           AND sp.gia >= $2 
           AND sp.gia <= $3
         ORDER BY ${sortQuery}
@@ -166,19 +172,22 @@ const getAllSanphamSearchHh = async ({ search, mahh, orderby, minPrice, maxPrice
     const queryText = `
         SELECT sp.*, hh.tenhh,
             (
-                SELECT JSON_AGG(anh) 
+                SELECT COALESCE(JSON_AGG(anh), '[]'::json)
                 FROM (
                     SELECT maha, duongdan, masp, anhdaidien 
                     FROM public.hinhanhsp 
-                    WHERE masp = sp.masp 
-                    ORDER BY anhdaidien ASC
+                    WHERE TRIM(masp) = TRIM(sp.masp)
+                      AND NULLIF(TRIM(duongdan), '') IS NOT NULL
+                    ORDER BY
+                        CASE WHEN anhdaidien = 1 THEN 0 WHEN anhdaidien = 2 THEN 1 ELSE 2 END,
+                        maha
                 ) anh
             ) as hinhanhsps,
             COUNT(*) OVER() as total_count -- Lấy tổng số dòng để tính totalPages
         FROM public.sanpham sp
-        LEFT JOIN public.hoathinh hh ON sp.mahh = hh.mahh
+        LEFT JOIN public.hoathinh hh ON TRIM(sp.mahh) = TRIM(hh.mahh)
         WHERE ($1::text IS NULL OR sp.tensp ILIKE '%' || $1::text || '%')
-          AND ($2::text IS NULL OR sp.mahh ILIKE '%' || $2::text || '%')
+          AND ($2::text IS NULL OR TRIM(sp.mahh) ILIKE '%' || $2::text || '%')
           AND sp.gia >= $3 
           AND sp.gia <= $4
         ORDER BY ${sortQuery}
@@ -200,9 +209,6 @@ const getAllSanphamSearchHh = async ({ search, mahh, orderby, minPrice, maxPrice
 };
 
 const getAllSanphamChitiet = async ({ masp }) => {
-    console.log('🔥 Backend nhận:', {masp});
-    console.log('🔥 masp:', masp);
-
     const queryText = `
         SELECT sp.*, dmh.tendmh, hh.tenhh,
             (
@@ -210,22 +216,21 @@ const getAllSanphamChitiet = async ({ masp }) => {
                 FROM (
                     SELECT maha, duongdan, masp, anhdaidien 
                     FROM public.hinhanhsp 
-                    WHERE masp = sp.masp 
-                    ORDER BY anhdaidien ASC
+                    WHERE TRIM(masp) = TRIM(sp.masp)
+                      AND NULLIF(TRIM(duongdan), '') IS NOT NULL
+                    ORDER BY
+                        CASE WHEN anhdaidien = 1 THEN 0 WHEN anhdaidien = 2 THEN 1 ELSE 2 END,
+                        maha
                 ) anh
             ) as hinhanhsps,
             COUNT(*) OVER() as total_count -- Lấy tổng số dòng để tính totalPages
         FROM public.sanpham sp
-        JOIN public.danhmuchang dmh ON sp.madmh = dmh.madmh
-        JOIN public.hoathinh hh ON sp.mahh = hh.mahh
-        WHERE sp.masp ILIKE '%' || $1 || '%' `;
+        JOIN public.danhmuchang dmh ON TRIM(sp.madmh) = TRIM(dmh.madmh)
+        JOIN public.hoathinh hh ON TRIM(sp.mahh) = TRIM(hh.mahh)
+        WHERE TRIM(sp.masp) = TRIM($1) `;
 
     const values = [masp];
-    console.log('alues:', values);
     const result = await pool.query(queryText, values);
-    console.log('Test query count:', result.rows[0].count);
-    console.log('rows:', result.rows);
-    console.log('rows length:', result.rows.length);
     return {
         items: result.rows
     };

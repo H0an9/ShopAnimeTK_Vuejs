@@ -475,14 +475,14 @@ watch(
             <nav aria-label="breadcrumb" class="breadcrumb-nav">
                 <ol class="breadcrumb">
                     <li class="breadcrumb-item">
-                        <a :href="`/`"><i class="icon-home"></i>
-                        </a>
+                        <router-link to="/"><i class="icon-home"></i>
+                        </router-link>
                     </li>
-                    <li class="breadcrumb-item"><a :href="`/Danhmuchang?MaDmh=${sp?.madmh}`">
-                            {{ sp?.tendmh }}</a>
+                    <li class="breadcrumb-item"><router-link :to="`/Danhmuchang?MaDmh=${sp?.madmh}`">
+                            {{ sp?.tendmh }}</router-link>
                     </li>
-                    <li class="breadcrumb-item"><a :href="`/Hoathinh?MaHh=${sp?.mahh}`">
-                            {{ sp?.tenhh }}</a>
+                    <li class="breadcrumb-item"><router-link :to="`/Hoathinh?MaHh=${sp?.mahh}`">
+                            {{ sp?.tenhh }}</router-link>
                     </li>
                 </ol>
             </nav>
@@ -636,16 +636,16 @@ watch(
                             <li>
                                 Danh mục hàng:
                                 <strong>
-                                    <a :href="`/Danhmuchang?MaDmh=${sp?.madmh}`" class="product-category">{{ sp?.tendmh
-                                    }}</a>
+                                    <router-link :to="`/Danhmuchang?MaDmh=${sp?.madmh}`" class="product-category">{{ sp?.tendmh
+                                    }}</router-link>
                                 </strong>
                             </li>
 
                             <li>
                                 Hoạt hình:
                                 <strong>
-                                    <a :href="`/Hoathinh?MaHh=${sp?.tenhh}`" class="product-category">{{ sp?.tenhh
-                                    }}</a>
+                                    <router-link :to="`/Hoathinh?MaHh=${sp?.mahh}`" class="product-category">{{ sp?.tenhh
+                                    }}</router-link>
                                 </strong>
                             </li>
                             <li>

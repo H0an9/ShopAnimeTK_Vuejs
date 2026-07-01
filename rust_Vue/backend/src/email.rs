@@ -1,7 +1,6 @@
 use lettre::{
-    message::Mailbox,
-    transport::smtp::authentication::Credentials,
-    AsyncSmtpTransport, AsyncTransport, Message, Tokio1Executor,
+    message::Mailbox, transport::smtp::authentication::Credentials, AsyncSmtpTransport,
+    AsyncTransport, Message, Tokio1Executor,
 };
 
 fn env_value(key: &str) -> Option<String> {
@@ -24,10 +23,10 @@ pub async fn send_email(to: &str, subject: &str, body: &str) -> Result<bool, Str
             return Ok(false);
         }
     };
-    let username = env_value("SMTP_USERNAME")
-        .ok_or_else(|| "SMTP_USERNAME is not configured".to_string())?;
-    let password = env_value("SMTP_PASSWORD")
-        .ok_or_else(|| "SMTP_PASSWORD is not configured".to_string())?;
+    let username =
+        env_value("SMTP_USERNAME").ok_or_else(|| "SMTP_USERNAME is not configured".to_string())?;
+    let password =
+        env_value("SMTP_PASSWORD").ok_or_else(|| "SMTP_PASSWORD is not configured".to_string())?;
     let from = env_value("SMTP_FROM").unwrap_or_else(|| username.clone());
     let port = env_value("SMTP_PORT")
         .and_then(|value| value.parse::<u16>().ok())
@@ -78,20 +77,4 @@ pub async fn send_best_effort(to: Option<&str>, subject: &str, body: &str) -> bo
             false
         }
     }
-}
-
-pub fn is_order_notice_status(status_id: &str, status_name: Option<&str>) -> bool {
-    let keywords = env_value("ORDER_EMAIL_STATUS_KEYWORDS")
-        .unwrap_or_else(|| "xác nhận,xac nhan,hủy,huỷ,huy".to_string());
-    let status = format!(
-        "{} {}",
-        status_id.to_lowercase(),
-        status_name.unwrap_or_default().to_lowercase()
-    );
-
-    keywords
-        .split(',')
-        .map(str::trim)
-        .filter(|keyword| !keyword.is_empty())
-        .any(|keyword| status.contains(&keyword.to_lowercase()))
 }
