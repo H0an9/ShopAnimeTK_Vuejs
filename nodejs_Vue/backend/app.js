@@ -1267,7 +1267,7 @@ app.get('/api/orders/:mahd', requireUser, async (req, res) => {
 
 async function getChatDatabaseContext() {
     // Chỉ dùng các câu SELECT cố định. Ollama không nhận chuỗi kết nối và không thể tự chạy SQL.
-    const [summaryResult, categoriesResult, productsResult, promotionsResult] = await Promise.all([
+    const [summaryResult, categoriesResult, productsResult, promotionsResult, mostExpensiveResult] = await Promise.all([
         pool.query(`
             SELECT COUNT(*)::integer AS tong_san_pham,
                    COUNT(*) FILTER (WHERE COALESCE(soluong, 0) > 0)::integer AS san_pham_con_hang,
@@ -1297,6 +1297,15 @@ async function getChatDatabaseContext() {
             FROM public.khuyenmai
             WHERE ngaybd <= CURRENT_DATE AND ngaykt >= CURRENT_DATE
             ORDER BY ngaykt
+        `),
+        pool.query(`
+            SELECT TRIM(sp.masp) AS masp, sp.tensp, sp.gia,
+                   COALESCE(sp.soluong, 0)::integer AS soluong,
+                   dmh.tendmh
+            FROM public.sanpham sp
+            LEFT JOIN public.danhmuchang dmh ON TRIM(dmh.madmh) = TRIM(sp.madmh)
+            WHERE sp.gia = (SELECT MAX(gia) FROM public.sanpham)
+            ORDER BY TRIM(sp.masp)
         `)
     ])
 
@@ -1308,7 +1317,8 @@ async function getChatDatabaseContext() {
         },
         danhMuc: categoriesResult.rows,
         sanPham: productsResult.rows,
-        khuyenMaiDangApDung: promotionsResult.rows
+        khuyenMaiDangApDung: promotionsResult.rows,
+        sanPhamDatNhat: mostExpensiveResult.rows
     }
 }
 
@@ -1335,6 +1345,13 @@ function getDirectDatabaseAnswer(message, databaseContext) {
             return (productName.length >= 4 && normalizedMessage.includes(productName))
                 || (productId && normalizedMessage.includes(productId))
         })
+
+    if (/(?:mac(?: tien)? nhat|dat nhat|gia cao nhat)/.test(normalizedMessage)) {
+        const products = databaseContext.sanPhamDatNhat || []
+        if (!products.length) return 'Hiện chưa có dữ liệu giá sản phẩm.'
+        const names = products.map(item => `${item.tensp} (${item.masp})`).join(', ')
+        return `Sản phẩm đắt nhất shop là ${names}, có giá ${formatChatCurrency(products[0].gia)}.`
+    }
 
     // Ưu tiên danh mục trước sản phẩm vì câu "danh mục sản phẩm" chứa cả hai cụm từ.
     if (asksCount && /danh muc(?: hang| san pham)?/.test(normalizedMessage)) {

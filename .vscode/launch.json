@@ -1,0 +1,76 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Debug: Node Backend (3000)",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/nodejs_Vue/backend/app.js",
+      "cwd": "${workspaceFolder}/nodejs_Vue/backend",
+      "envFile": "${workspaceFolder}/nodejs_Vue/backend/.env",
+      "console": "integratedTerminal",
+      "skipFiles": ["<node_internals>/**"],
+      "restart": true
+    },
+    {
+      "name": "Debug: Node Vue Frontend (5173)",
+      "type": "pwa-chrome",
+      "request": "launch",
+      "url": "http://localhost:5173",
+      "webRoot": "${workspaceFolder}/nodejs_Vue/frontend/ShopAnimeTK_nodejs/src",
+      "userDataDir": "${env:TEMP}/shopanimetk-node-vue-debug",
+      "runtimeArgs": ["--new-window"],
+      "preLaunchTask": "Serve: Node Vue Frontend",
+      "sourceMaps": true
+    },
+    {
+      "name": "Debug: Rust Backend (8080)",
+      "type": "lldb",
+      "request": "launch",
+      "program": "${workspaceFolder}/rust_Vue/backend/target/debug/shop_admin_api.exe",
+      "cwd": "${workspaceFolder}/rust_Vue/backend",
+      "preLaunchTask": "Build: Rust Backend",
+      "sourceLanguages": ["rust"],
+      "terminal": "integrated"
+    },
+    {
+      "name": "Debug: Rust Vue Frontend (5174)",
+      "type": "pwa-chrome",
+      "request": "launch",
+      "url": "http://localhost:5174",
+      "webRoot": "${workspaceFolder}/rust_Vue/frontend/src",
+      "userDataDir": "${env:TEMP}/shopanimetk-rust-vue-debug",
+      "runtimeArgs": ["--new-window"],
+      "preLaunchTask": "Serve: Rust Vue Frontend",
+      "sourceMaps": true
+    }
+  ],
+  "compounds": [
+    {
+      "name": "Debug: Node system",
+      "configurations": [
+        "Debug: Node Backend (3000)",
+        "Debug: Node Vue Frontend (5173)"
+      ],
+      "stopAll": true
+    },
+    {
+      "name": "Debug: Rust system",
+      "configurations": [
+        "Debug: Rust Backend (8080)",
+        "Debug: Rust Vue Frontend (5174)"
+      ],
+      "stopAll": true
+    },
+    {
+      "name": "Debug: All 4 systems",
+      "configurations": [
+        "Debug: Node Backend (3000)",
+        "Debug: Node Vue Frontend (5173)",
+        "Debug: Rust Backend (8080)",
+        "Debug: Rust Vue Frontend (5174)"
+      ],
+      "stopAll": true
+    }
+  ]
+}

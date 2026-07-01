@@ -1,0 +1,99 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Serve: Node Vue Frontend",
+      "type": "shell",
+      "command": "npm run dev -- --port 5173 --strictPort",
+      "options": {
+        "cwd": "${workspaceFolder}/nodejs_Vue/frontend/ShopAnimeTK_nodejs"
+      },
+      "isBackground": true,
+      "problemMatcher": [
+        {
+          "base": "$tsc-watch",
+          "background": {
+            "activeOnStart": true,
+            "beginsPattern": ".*",
+            "endsPattern": "Local:.*http://localhost:5173"
+          }
+        }
+      ],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "group": "node-frontend"
+      }
+    },
+    {
+      "label": "Serve: Rust Vue Frontend",
+      "type": "shell",
+      "command": "npm run dev -- --port 5174 --strictPort",
+      "options": {
+        "cwd": "${workspaceFolder}/rust_Vue/frontend"
+      },
+      "isBackground": true,
+      "problemMatcher": [
+        {
+          "base": "$tsc-watch",
+          "background": {
+            "activeOnStart": true,
+            "beginsPattern": ".*",
+            "endsPattern": "Local:.*http://localhost:5174"
+          }
+        }
+      ],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "group": "rust-frontend"
+      }
+    },
+    {
+      "label": "Build: Rust Backend",
+      "type": "shell",
+      "command": "cargo build --bin shop_admin_api",
+      "options": { "cwd": "${workspaceFolder}/rust_Vue/backend" },
+      "problemMatcher": ["$rustc"]
+    },
+    {
+      "label": "Check: Node Backend",
+      "type": "shell",
+      "command": "node --check app.js",
+      "options": { "cwd": "${workspaceFolder}/nodejs_Vue/backend" },
+      "problemMatcher": []
+    },
+    {
+      "label": "Check: Node Vue Frontend",
+      "type": "shell",
+      "command": "npm run type-check",
+      "options": { "cwd": "${workspaceFolder}/nodejs_Vue/frontend/ShopAnimeTK_nodejs" },
+      "problemMatcher": []
+    },
+    {
+      "label": "Check: Rust Backend",
+      "type": "shell",
+      "command": "cargo check",
+      "options": { "cwd": "${workspaceFolder}/rust_Vue/backend" },
+      "problemMatcher": ["$rustc"]
+    },
+    {
+      "label": "Check: Rust Vue Frontend",
+      "type": "shell",
+      "command": "npm run build",
+      "options": { "cwd": "${workspaceFolder}/rust_Vue/frontend" },
+      "problemMatcher": []
+    },
+    {
+      "label": "Check: All 4 systems",
+      "dependsOrder": "parallel",
+      "dependsOn": [
+        "Check: Node Backend",
+        "Check: Node Vue Frontend",
+        "Check: Rust Backend",
+        "Check: Rust Vue Frontend"
+      ],
+      "problemMatcher": []
+    }
+  ]
+}
