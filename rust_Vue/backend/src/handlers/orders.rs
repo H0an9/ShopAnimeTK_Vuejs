@@ -38,8 +38,8 @@ fn order_select() -> &'static str {
     LEFT JOIN LATERAL (
         SELECT c.matt, t.tentrangthai, c.ngaycapnhat
         FROM cttrangthai c
-        LEFT JOIN trangthai t ON t.matt = c.matt
-        WHERE c.mahd = h.mahd
+        LEFT JOIN trangthai t ON TRIM(t.matt) = TRIM(c.matt)
+        WHERE TRIM(c.mahd) = TRIM(h.mahd)
         ORDER BY c.ngaycapnhat DESC NULLS LAST
         LIMIT 1
     ) latest ON true
@@ -89,7 +89,7 @@ async fn get_one(
         r#"
         SELECT TRIM(c.matt) AS matt, t.tentrangthai, c.ngaycapnhat
         FROM cttrangthai c
-        LEFT JOIN trangthai t ON t.matt = c.matt
+        LEFT JOIN trangthai t ON TRIM(t.matt) = TRIM(c.matt)
         WHERE TRIM(c.mahd) = TRIM($1)
         ORDER BY c.ngaycapnhat DESC NULLS LAST
         "#,

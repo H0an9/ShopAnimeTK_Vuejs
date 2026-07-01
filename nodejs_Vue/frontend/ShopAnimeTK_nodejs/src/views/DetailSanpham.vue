@@ -637,7 +637,7 @@ watch(
                                 Danh mục hàng:
                                 <strong>
                                     <a :href="`/Danhmuchang?MaDmh=${sp?.madmh}`" class="product-category">{{ sp?.tendmh
-                                        }}</a>
+                                    }}</a>
                                 </strong>
                             </li>
 
@@ -645,7 +645,7 @@ watch(
                                 Hoạt hình:
                                 <strong>
                                     <a :href="`/Hoathinh?MaHh=${sp?.tenhh}`" class="product-category">{{ sp?.tenhh
-                                        }}</a>
+                                    }}</a>
                                 </strong>
                             </li>
                             <li>

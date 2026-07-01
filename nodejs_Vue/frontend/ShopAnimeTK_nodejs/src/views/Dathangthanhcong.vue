@@ -86,7 +86,9 @@ onMounted(async () => {
                     <h3>ĐƠN HÀNG</h3>
                     <table class="order-table">
                         <thead>
-                            <tr><th colspan="2">Sản phẩm</th></tr>
+                            <tr>
+                                <th colspan="2">Sản phẩm</th>
+                            </tr>
                         </thead>
                         <tbody>
                             <tr v-for="detail in order.details" :key="detail.masp">
@@ -95,13 +97,22 @@ onMounted(async () => {
                             </tr>
                         </tbody>
                         <tfoot>
-                            <tr><th>Tạm tính</th><td>{{ formatCurrency(order.subtotal) }}</td></tr>
-                            <tr><th>Tiền ship</th><td>+ {{ formatCurrency(order.shippingFee) }}</td></tr>
+                            <tr>
+                                <th>Tạm tính</th>
+                                <td>{{ formatCurrency(order.subtotal) }}</td>
+                            </tr>
+                            <tr>
+                                <th>Tiền ship</th>
+                                <td>+ {{ formatCurrency(order.shippingFee) }}</td>
+                            </tr>
                             <tr>
                                 <th>Tiền khuyến mãi <small v-if="order.makm">({{ order.makm }})</small></th>
                                 <td>- {{ formatCurrency(order.discount) }}</td>
                             </tr>
-                            <tr class="grand-total"><th>Thanh toán</th><td>{{ formatCurrency(order.thanhtien) }}</td></tr>
+                            <tr class="grand-total">
+                                <th>Thanh toán</th>
+                                <td>{{ formatCurrency(order.thanhtien) }}</td>
+                            </tr>
                         </tfoot>
                     </table>
                 </div>
